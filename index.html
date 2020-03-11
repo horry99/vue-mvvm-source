@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div id="app">
+        <!-- 双向数据绑定 靠的是表单-->
+        <input type="text" v-model="message" />
+        {{message}}
+    </div>
+    <script src="./node_modules/vue/dist/vue.min.js"></script>
+    <script>
+        // 我们的数据一般都挂载在vm上
+        // vue实现双向数据绑定 1.模板编译 2.数据劫持 观察数据变化 3.watcher
+        let vm = new Vue({
+            el: '#app', // document.getElementById('app')
+            data: {
+                message: 'hello world!'
+            }
+        })
+    </script>
+</body>
+
+</html>
