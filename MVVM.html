@@ -9,12 +9,12 @@
 
 <body>
     <div id="app">
-        <input type="text" v-model="message.a" />
-        <div> {{message.b}}</div>
+        <input type="text" v-model="message.title" />
+        <div> {{message.title}} {{message.msg}}</div>
         <ul>
             <li>文本</li>
         </ul>
-        {{message.a}} {{a}}
+        {{message.title}} {{name}}
     </div>
     <script src="watcher.js"></script>
     <script src="observer.js"></script>
@@ -24,10 +24,10 @@
         let vm = new MVVM({
             el: '#app',
             data: {
-                a: 1,
+                name: 'bob',
                 message: {
-                    a: 'hello world!',
-                    b: 'hello'
+                    title: 'hello world!',
+                    msg: 'message'
                 }
             }
         })

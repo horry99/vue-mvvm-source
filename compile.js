@@ -90,6 +90,15 @@ compileUtil = {
         }, vm.$data)
 
     },
+    setVal(vm, expr, value) {
+        expr = expr.split('.')
+        return expr.reduce((prev, next, currentIndex) => {
+            if (currentIndex == expr.length - 1) {
+                return prev[next] = value
+            }
+            return prev[next]
+        }, vm.$data)
+    },
     getTextVal(vm, expr) {
         return expr.replace(/\{\{([^}]+)\}\}/g, (...arguments) => {
             return this.getVal(vm, arguments[1])
@@ -99,10 +108,9 @@ compileUtil = {
         let updateFn = this.updater["textUpdater"]
         // {{a}} {{b}} 多个文本
         expr.replace(/\{\{([^}]+)\}\}/g, (...arguments) => {
-            console.log(arguments);
             new Watcher(vm, arguments[1], (newValue) => {
-                // 当数据更新了,文本依赖的数据需要重新拉取更新
-                let value = this.getTextVal()
+                // 当数据更新了,文本节点需要重新获取依赖的属性更新文本中的内容（A的值变了，需要重新获取A的值再加上B的值，重新渲染）
+                let value = this.getTextVal(vm, expr)
                 updateFn && updateFn(node, value)
             })
         })
@@ -112,8 +120,12 @@ compileUtil = {
     model(node, vm, expr) { // v-model（输入框）处理函数
         let updateFn = this.updater["modelUpdater"]
         new Watcher(vm, expr, (newValue) => {
-            // 如果调用watcher的update函数,就会触发cb回调
+            // 如果调用watcher的update函数,就会触发cb回调，将新的值传递过来
             updateFn && updateFn(node, this.getVal(vm, expr))
+        })
+        node.addEventListener('input', (e) => {
+            let value = e.target.value
+            this.setVal(vm, expr, value)
         })
         updateFn && updateFn(node, this.getVal(vm, expr))
     },

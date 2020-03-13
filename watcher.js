@@ -5,7 +5,7 @@ class Watcher {
         this.expr = expr
         this.cb = cb // 更新回调
         // 存放老数据
-        this.value = this.get(vm, expr)
+        this.value = this.get()
     }
 
     getVal(vm, expr) {
@@ -16,12 +16,14 @@ class Watcher {
         }, vm.$data)
 
     }
-    get(vm, expr) {
-        let value = this.getVal(vm, expr)
+    get() {
+        Dep.target = this // 将当前实例赋值给依赖收集的容器(有多少依赖，就会有多少个watcher)
+        let value = this.getVal(this.vm, this.expr) // this.vm（去实例）会调用getter/setter
+        Dep.target = null // 更新完再将依赖收集清空
         return value
     }
-    update(vm, expr) {
-        let newValue = this.getVal(vm, expr)
+    update() {
+        let newValue = this.getVal(this.vm, this.expr)
         let oldValue = this.value
         if (newValue != oldValue) {
             this.cb(newValue) // 执行update的callback
