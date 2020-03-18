@@ -1,143 +1,135 @@
+// 模板编译
 class Compile {
     constructor(el, vm) {
+        /**
+        * @param {*} el 元素 注意：el选项中有可能是‘#app’字符串也有可能是document.getElementById('#app')
+        * @param {*} vm 实例
+        */
+        // 判断是不是元素
         this.el = this.isElementNode(el) ? el : document.querySelector(el)
         this.vm = vm
+
         if (this.el) {
-            // 如果能获取到这个元素，我们才进行编译
-            //1. 将真实dom,移入到内存中
+            // 1.将当前根节点的所有节点放入到内存中
             let fragment = this.node2Fragment(this.el)
-            // 2.编译=>提取想要的元素节点（指令v-model）/文本节点{{}} 
+            // 2.编译-提取文本节点和元素节点
             this.compile(fragment)
-            // 3.将编译好的fragment再塞回到页面上
+            // 3.将编译好的节点放回到真实DOM里
             this.el.appendChild(fragment)
         }
     }
-
-    /**
-     * 专门写一些辅助的方法
-    */
-
-    // 判断是不是个节点
+    // 判断编译文本的正则
+    isTextReg() {
+        return /\{\{([^}]+)\}\}/g
+    }
+    // 判断是不是元素
     isElementNode(node) {
-        // 元素类型
         return node.nodeType === 1
     }
     // 判断是不是指令
     isDirective(name) {
         return name.includes('v-')
     }
-
-
-    /**
-     * 一些核心方法
-    */
     compileElement(node) {
-        // 获取指令的值放入到元素的value中去
-        let attrs = node.attributes // 获取当前元素的属性节点
+        // 获取元素节点的所有属性
+        let attrs = node.attributes
         Array.from(attrs).forEach(attr => {
             let attrName = attr.name // 属性名
-            // 判断有没有包含v-
+            let expr = attr.value
+            // 判断是否存在v-指令
             if (this.isDirective(attrName)) {
-                let expr = attr.value // 属性值
-                // 调用相对应的指令函数 
+                // todo...
                 let [, type] = attrName.split('-')
-                compileUtil[type](node, this.vm, expr)
+                // node  message.title  this.vm.$data.message.title
+                compileUtil[type](node, expr, this.vm)
             }
         })
+
     }
     compileText(node) {
-        // 带{{}}
-        let expr = node.textContent // 去文本中的内容
-        let reg = /\{\{([^}]+)\}\}/g   // {{a}} {{b}} {{c}}
-        if (reg.test(expr)) {
-            compileUtil['text'](node, this.vm, expr)
+        // 获取文本节点,并将大括号中的内容替换成数据
+        let expr = node.textContent
+        if (this.isTextReg().test(expr)) {
+            // todo...
+            compileUtil['text'](node, expr, this.vm)
         }
     }
     compile(fragment) {
-        // 获取所有的元素(第一层元素)
-        let childNodes = fragment.childNodes // 得到的结果是文档集合
+        // 从文档碎片中获取所有的节点[注意：这里的childNodes只是所有的第一层节点]
+        let childNodes = fragment.childNodes
         Array.from(childNodes).forEach(node => {
+            // 判断当前节点是文本还是元素
             if (this.isElementNode(node)) {
-                // 是元素节点,还需要深入检查
-                // 编译元素
+                // 元素节点,还需要深入编译
                 this.compileElement(node)
                 this.compile(node)
             } else {
-                // 是文本节点
-                // 编译文本
+                // 文本节点
                 this.compileText(node)
             }
         })
     }
     node2Fragment(el) {
-        // 将dom节点一个一个的移入内存中
+        // 创建一个文档碎片，将所有的孩子都写入到该碎片中
         let fragment = document.createDocumentFragment()
         let firstChild
+        // dom节点一个一个的移入内存中
         while (firstChild = el.firstChild) {
             fragment.appendChild(firstChild)
         }
-        return fragment // 内存中的节点，页面上的节点都移除了
+        // 内存中的节点，页面上的节点都移除了
+        return fragment
     }
+
 }
 
-// 编译工具类方法集合
 compileUtil = {
-    getVal(vm, expr) {
-        // 数据层级结构比较深
+    // 获取值
+    getVal(expr, vm) {
+        // message.title
         expr = expr.split('.')
         return expr.reduce((prev, next) => {
             return prev[next]
         }, vm.$data)
-
     },
-    setVal(vm, expr, value) {
-        expr = expr.split('.')
-        return expr.reduce((prev, next, currentIndex) => {
-            if (currentIndex == expr.length - 1) {
-                return prev[next] = value
-            }
-            return prev[next]
-        }, vm.$data)
-    },
-    getTextVal(vm, expr) {
+    getTextVal(expr, vm) {
         return expr.replace(/\{\{([^}]+)\}\}/g, (...arguments) => {
-            return this.getVal(vm, arguments[1])
+            return this.getVal(arguments[1], vm)
         })
     },
-    text(node, vm, expr) { // 文本处理
-        let updateFn = this.updater["textUpdater"]
-        // {{a}} {{b}} 多个文本
+    text(node, expr, vm) {
+        const updateFn = this.updater['textUpdater']
         expr.replace(/\{\{([^}]+)\}\}/g, (...arguments) => {
-            new Watcher(vm, arguments[1], (newValue) => {
+            new Watcher(arguments[1], vm, (newValue) => {
                 // 当数据更新了,文本节点需要重新获取依赖的属性更新文本中的内容（A的值变了，需要重新获取A的值再加上B的值，重新渲染）
-                let value = this.getTextVal(vm, expr)
-                updateFn && updateFn(node, value)
+                updateFn && updateFn(node, this.getTextVal(expr, vm))
             })
         })
-        let value = this.getTextVal(vm, expr)
-        updateFn && updateFn(node, value)
+        updateFn && updateFn(node, this.getTextVal(expr, vm))
     },
-    model(node, vm, expr) { // v-model（输入框）处理函数
-        let updateFn = this.updater["modelUpdater"]
-        new Watcher(vm, expr, (newValue) => {
-            // 如果调用watcher的update函数,就会触发cb回调，将新的值传递过来
-            updateFn && updateFn(node, this.getVal(vm, expr))
+    /**
+     * 处理v-modal
+     * @param {*} node 对应的节点
+     * @param {*} expr 表达式
+     * @param {*} vm 当前实例
+     */
+    model(node, expr, vm) {
+        // 不同的指令调取不同的方法
+        const updateFn = this.updater['modelUpdater']
+        // 数据更新,会调用watcher的update方法，重新编译元素
+        new Watcher(expr, vm, (newValue) => {
+            updateFn && updateFn(node, this.getVal(expr, vm))
         })
-        node.addEventListener('input', (e) => {
-            let value = e.target.value
-            this.setVal(vm, expr, value)
-        })
-        updateFn && updateFn(node, this.getVal(vm, expr))
+        updateFn && updateFn(node, this.getVal(expr, vm))
     },
     updater: {
         // 文本更新
         textUpdater(node, value) {
             node.textContent = value
         },
-        // model指令更新
+        // 元素更新
         modelUpdater(node, value) {
             node.value = value
         }
     }
-
 }
