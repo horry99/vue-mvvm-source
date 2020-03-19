@@ -92,6 +92,15 @@ compileUtil = {
             return prev[next]
         }, vm.$data)
     },
+    setVal(expr, value) {
+        expr = expr.split('.')
+        return expr.reduce((prev, next, currentIndex) => {
+            if (currentIndex == expr.length - 1) {
+                return prev[next] = value
+            }
+            return prev[next]
+        }, vm.$data)
+    },
     getTextVal(expr, vm) {
         return expr.replace(/\{\{([^}]+)\}\}/g, (...arguments) => {
             return this.getVal(arguments[1], vm)
@@ -119,6 +128,10 @@ compileUtil = {
         // 数据更新,会调用watcher的update方法，重新编译元素
         new Watcher(expr, vm, (newValue) => {
             updateFn && updateFn(node, this.getVal(expr, vm))
+        })
+        node.addEventListener('input', (e) => {
+            let newValue = e.target.value
+            this.setVal(expr, newValue)
         })
         updateFn && updateFn(node, this.getVal(expr, vm))
     },
